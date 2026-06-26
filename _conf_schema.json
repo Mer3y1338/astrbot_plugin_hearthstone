@@ -1,0 +1,17 @@
+{
+    "blizz_id": {
+        "description": "Blizzard API Client ID（可选，不填使用 hearthstonejson 图源）",
+        "type": "string",
+        "default": ""
+    },
+    "blizz_sec": {
+        "description": "Blizzard API Client Secret（可选）",
+        "type": "string",
+        "default": ""
+    },
+    "max_response": {
+        "description": "卡牌搜索每页最多返回数量",
+        "type": "int",
+        "default": 8
+    }
+}

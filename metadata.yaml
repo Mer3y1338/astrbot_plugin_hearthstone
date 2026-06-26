@@ -1,0 +1,10 @@
+name: astrbot_plugin_hearthstone
+desc: 🔥 炉石传说卡牌查询与卡组生成插件 — 支持多语言卡牌搜索/原画/标签查询，卡组代码渲染为精美卡组图
+version: 1.0.0
+author: Mer3y1338
+repo: https://github.com/Mer3y1338/astrbot_plugin_hearthstone
+support_platforms:
+  - aiocqhttp
+  - qq_official
+  - telegram
+astrbot_version: ">=4.16,<5"

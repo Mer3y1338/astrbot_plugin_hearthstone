@@ -1,0 +1,18 @@
+__pycache__/
+*.py[cod]
+*.log
+.env
+.env.*
+.DS_Store
+
+# AstrBot runtime/private data
+data/
+*.db
+*.sqlite
+*.sqlite3
+
+# Large optional deck-render assets, install with scripts/install_assets.sh
+hs-card-tiles/
+
+# Unused large font from upstream resource bundle
+resources/NotoSansCJK-Bold.ttc

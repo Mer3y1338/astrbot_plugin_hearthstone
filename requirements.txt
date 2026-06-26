@@ -1,0 +1,4 @@
+hearthstone>=6.0
+Pillow>=9.0
+httpx>=0.24
+aiohttp>=3.8
