@@ -13,5 +13,10 @@
         "description": "卡牌搜索每页最多返回数量",
         "type": "int",
         "default": 8
+    },
+    "resource_proxy": {
+        "description": "资源更新代理地址，例如 http://<proxy-host>:<port>；留空则直连",
+        "type": "string",
+        "default": ""
     }
 }

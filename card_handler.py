@@ -28,6 +28,16 @@ with open(os.path.join(path, "hs-alter-name", "alter.json"),
 supported_langs = [locale.name for locale in Locale.__members__.values()]
 translation = stringsfile.load_globalstrings('zhCN')
 
+CONSTRUCTED_EXCLUDED_SETS = {
+    "BATTLEGROUNDS",
+    "HERO_SKINS",
+    "LETTUCE",
+    "PLACEHOLDER_202204",
+    "TB",
+    "VANILLA",
+}
+
+
 def card_compare(a, b):
     if a.collectible == b.collectible:
         if type(a.card_set) is int:
@@ -71,6 +81,13 @@ def get_card_class(card):
         card_class = '无职业'
 
     return card_class
+
+
+def get_card_races(card):
+    races = list(getattr(card, "races", None) or [])
+    if not races and card.race != Race.INVALID:
+        races = [card.race]
+    return [race for race in races if race != Race.INVALID]
 
 
 CardXML.loc_name = loc_name
@@ -137,29 +154,51 @@ class CardHandler():
             logger.warning(f"Skipped {len(missing_pairs)} missing Battlegrounds pair cards")
         return bgs.values()
 
-    def first_handle(self, terms, is_bgs, max_response):
+    def _is_collectible_constructed_card(self, card):
+        if not card.collectible:
+            return False
+        card_set = getattr(card.card_set, "name", str(card.card_set))
+        if card_set in CONSTRUCTED_EXCLUDED_SETS:
+            return False
+        if card.type == CardType.HERO and card.cost == 0 and str(card.id).startswith("HERO_"):
+            return False
+        return True
+
+    def first_handle(self, terms, is_bgs, max_response, collectible_only=False,
+                     list_mode="card", search_mode="name"):
         cards = []
         search_list = self.bgs_list if is_bgs else self.cards_list
+        matcher = self.search_race if search_mode == "race" else self.search
         for card in search_list:
-            if all([self.search(term, card, is_bgs) for term in terms]):
+            if collectible_only and not is_bgs and not self._is_collectible_constructed_card(card):
+                continue
+            if all([matcher(term, card, is_bgs) for term in terms]):
                 cards.append(card)
         num_cards = len(cards)
         if num_cards == 0:
-            hint = "找不到相应的卡牌"
+            hint = "找不到相应的卡牌" if search_mode == "name" else "找不到符合该种族/标签的卡牌"
         elif num_cards == 1:
             hint = ""
         else:
-            hint = self.second_handle(cards, 1, is_bgs, max_response)
+            hint = self.second_handle(cards, 1, is_bgs, max_response, list_mode)
         return cards, hint
 
-    def second_handle(self, cards, page, is_bgs, max_response):
+    def second_handle(self, cards, page, is_bgs, max_response, list_mode="card"):
         num_cards = len(cards)
         page_size = min(max_response, num_cards)
         page_count = math.ceil(num_cards / page_size)
         page = min(page_count, max(1, page))
         offset = (page - 1) * page_size
-        page_hint = ("查询到%d个卡牌，当前页数[%d/%d]，直接输入数字进行翻页\n" %
-                     (num_cards, page, page_count))
+        if list_mode == "race":
+            scope = "酒馆种族卡牌" if is_bgs else "构筑种族卡牌"
+        else:
+            scope = "酒馆卡牌" if is_bgs else "构筑卡牌"
+        action = "查看 tag" if list_mode == "tags" else "选择卡牌"
+        page_hint = (
+            "查询到%d张%s，当前页数[%d/%d]\n"
+            "回复数字%s，回复 p2 翻页\n" %
+            (num_cards, scope, page, page_count, action)
+        )
         hint = page_hint + "\n".join(
             self.stringify_card(cards[i], i + 1, is_bgs)
             for i in range(offset, min(offset + page_size, num_cards)))
@@ -180,8 +219,25 @@ class CardHandler():
             return True
         return False
 
+    def search_race(self, term, card, is_bgs):
+        term = term.strip().lower()
+        if not term:
+            return False
+        races = get_card_races(card)
+        all_race = Race.ALL in races
+        all_aliases = {"全种族", "全部种族", "全部", "融合", "融合怪", "all"}
+        for race in Race.__members__.values():
+            if race == Race.INVALID:
+                continue
+            cn = translate(race).lower()
+            names = {race.name.lower(), cn}
+            if len(cn) == 1:
+                names.add(f"{cn}族")
+            if term in names:
+                return race in races or all_race or (race == Race.ALL and term in all_aliases)
+        return term in all_aliases and all_race
+
     def stringify_card(self, card, index, is_bgs):
-        collectible = "可收藏" if card.collectible else "不可收藏"
         card_class = get_card_class(card)
         cost = "%d星" % card.tags[GameTag.TECH_LEVEL] if is_bgs else "%d费" % card.cost
         card_type = translate(card.type)
@@ -189,9 +245,10 @@ class CardHandler():
         gold = "（金）" if is_bgs and 1429 not in card.tags else ""
         card_set = ("无" if type(card.card_set) is int else
                     translate(card.card_set))
-        return ("\\%d：%s%s，%s%s%s，%s，%s" %
-                (index, name, gold, cost, card_class, card_type, collectible,
-                 card_set))
+        races = "/".join(translate(race) for race in get_card_races(card))
+        race_text = "，%s" % races if races else ""
+        return ("\\%d：%s%s，%s%s%s，%s%s" %
+                (index, name, gold, cost, card_class, card_type, card_set, race_text))
 
     async def get_pic(self, card, args):
         if self.use_offi:
@@ -247,8 +304,9 @@ class CardHandler():
                 if args["is_bgs"] else "\n费用：%d费" % card.cost)
         stats = ("\n身材：%s/%s" %
                  (card.atk, health) if card.atk + health > 0 else "")
-        race = ("\n种族：%s" % translate(card.race)
-                if card.race != Race.INVALID else "")
+        races = get_card_races(card)
+        race = ("\n种族：%s" % "/".join(translate(r) for r in races)
+                if races else "")
         rarity = ("\n稀有度：%s" % translate(card.rarity)
                   if card.rarity != Rarity.INVALID else "")
         text = "\n" + card.loc_text(lang) if len(card.description) else ""
