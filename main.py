@@ -91,7 +91,7 @@ class HearthstonePlugin(Star):
         event.stop_event()
 
     # ── 构筑种族/标签检索 /tag ─────────────────────────────────
-    @filter.command("tag", alias={"tags", "t", "T", "TAGS", "Tags"})
+    @filter.command("tag", alias={"tags", "t", "T", "TAGS", "Tags", "查标签", "炉石标签"})
     async def cmd_tags(self, event: AstrMessageEvent):
         yield await self._handle_first(
             event, "card", collectible_only=True,
@@ -110,7 +110,7 @@ class HearthstonePlugin(Star):
         event.stop_event()
 
     # ── 酒馆战棋种族/标签检索 /酒馆tag ─────────────────────────
-    @filter.command("酒馆tag", alias={"酒馆标签", "bgtag", "bgstags"})
+    @filter.command("酒馆tag", alias={"酒馆标签", "查酒馆标签", "酒馆查标签", "bgtag", "bgstags"})
     async def cmd_bgs_tags(self, event: AstrMessageEvent):
         yield await self._handle_first(
             event, "card", is_bgs_default=True,
@@ -122,7 +122,10 @@ class HearthstonePlugin(Star):
     # ── 原画 /ori ──────────────────────────────────────────────
     @filter.command("ori", alias={"o", "O", "ORI", "Ori", "art", "原画"})
     async def cmd_ori(self, event: AstrMessageEvent):
-        yield await self._handle_first(event, "ori")
+        yield await self._handle_first(
+            event, "ori", collectible_only=True,
+            usage="/原画 <卡牌名/关键词> [语言]"
+        )
         event.stop_event()
 
     # ── 卡组 /deck ─────────────────────────────────────────────
